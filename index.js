@@ -6,7 +6,7 @@ const File = require('./src/File.js')
 try {
   // Debugging. Remove before production.
   const payload = JSON.stringify(github.context.payload, undefined, 2)
-  console.log(`Event payload: ${payload}`)
+  // console.log(`Event payload: ${payload}`)
   // Action expects input to be a stringified JSON object. Invalid inputs will result in exceptions.
   const eslintInput = core.getInput('eslint-json')
   const root = JSON.parse(eslintInput)
@@ -21,7 +21,7 @@ try {
     <EOF>
   */
   let markdownReport = '## ESLint Report'
-  let summaryTable = '\n\n|File|Warnings|Errors|Result|\n----'
+  let summaryTable = '\n\n|File|Warnings|Errors|Result|\n|---|---|---|---|'
   let fileSections = []
   let files = root.map(data => new File(data))
 

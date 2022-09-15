@@ -17,7 +17,7 @@ module.exports = class File {
      * @returns     Markdown formatted section
      */
     toSection() {
-        return `${this.toHeading}\n${this.toTable}`
+        return `${this.toHeading()}\n${this.toTable()}`
     }
 
     /** 
@@ -27,10 +27,11 @@ module.exports = class File {
      * @returns {string}    Markdown formatted table
      */
     toTable() {
-        let markdownTable = this.pass ? '' : '|Line|Column|Message|Issue Type|Severity|Rule ID\n----'
-        for (const issue in this.issues) {
-            markdownTable += `\n${issue.genRow()}`
+        let markdownTable = this.pass ? '' : '|Line|Column|Message|Issue Type|Severity|Rule ID\n|---|---|---|---|---|---|'
+        for (const issue of this.issues) {
+            markdownTable += `\n${issue.toRow()}`
         }
+        return markdownTable
     }
 
     /**
@@ -72,7 +73,7 @@ module.exports = class File {
         let passSymbol = this.pass ? ':heavy_check_mark:' : ':x:'
         let errorTotals = this.fatalErrorCount ? `${this.errorCount} (${this.fatalErrorCount})` : this.errorCount
         // Parent table headings: | File | Warnings | Errors | Result |
-        let fileSummary = [this.filePath, this.warningCount, errorTotals, passSymbol]
+        let fileSummary = [this.path, this.warningCount, errorTotals, passSymbol]
         return `|${fileSummary.join('|')}|`
     }
 }
