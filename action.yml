@@ -1,0 +1,12 @@
+name: 'ESLint Reporter'
+description: 'Generate Markdown formatted reports from JSON formatted ESLint test results'
+inputs:
+  eslint-json:
+    description: 'ESLint results JSON'
+    required: true
+outputs:
+  report:
+    description: 'Markdown formatted report'
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
