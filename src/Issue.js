@@ -5,20 +5,22 @@ module.exports = class Issue {
         this.ruleId = data.ruleId.replace(/\|/g, '\|')
         this.message = data.message.replace(/\|/g, '\|')
         this.messageType = data.messageId.replace(/\|/g, '\|')
-        this.severity = data.severity
+        this.severity = data.severity > 0 ? (data.severity > 1 ? 'Warn' : 'Error') : 'Info'
         this.lnRange = [data.line, data.endLine]
         this.colRange = [data.column, data.endColumn]
     }
 
     /** 
-     * Return a Markdown formatted row containing 
-     * information about this Issue. Trailing newlines are omitted.
-     * 
-     * @returns {string}    Markdown formatted table row
+     * Return an array containing info about this Issue for use within a table.
+     * @returns {Array}
      */
     toRow() {
-        let lnAbbrev = this.lnRange[0] == this.lnRange[1] ? this.lnRange[0] : this.lnRange.join(':')
-        let markdownRow = [lnAbbrev, this.colRange[0], this.message, this.messageType, this.severity, this.ruleId]
-        return `|${markdownRow.join('|')}|`
+        return [
+            this.severity.toString(), 
+            this.lnRange[0] == this.lnRange[1] ? this.lnRange[0].toString() : this.lnRange.join(':'), 
+            this.colRange[0].toString(), 
+            this.message, 
+            `${this.messageType} (${this.ruleId})`
+        ]
     }
 }

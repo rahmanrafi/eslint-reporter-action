@@ -1,9 +1,17 @@
 name: 'ESLint Reporter'
-description: 'Generate Markdown formatted reports from JSON formatted ESLint test results'
+author: Rafi Rahman
+description: 'Generate Markdown formatted reports from JSON formatted ESLint linting results.'
+branding:
+  icon: 'file-text'
+  color: 'green'
 inputs:
   eslint-json:
     description: 'ESLint results JSON'
     required: true
+  title:
+    description: Title to use for report'
+    required: true
+    default: 'ESLint Report'
 outputs:
   report:
     description: 'Markdown formatted report'
