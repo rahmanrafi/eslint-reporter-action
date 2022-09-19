@@ -10,7 +10,7 @@ inputs:
     required: true
   title:
     description: Title to use for report'
-    required: true
+    required: false
     default: 'ESLint Report'
 outputs:
   report:
