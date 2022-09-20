@@ -20,7 +20,7 @@ The general structure of the report produced (as raw Markdown):
     |  File  | Warnings | Errors | Result |
     |--------|----------|--------|--------|
     | foo.js |     1    |  3(1)  |    X   |
-    | bar.js |     0    |    0   |    ✓   |
+    | bar.js |     0    |    0   |   v/   |
 
 
     ## foo.js: 1 warning, 3 errors (1 fatal)

@@ -10,7 +10,14 @@ jobs:
       - name: Get JSON
         id: json
         run: echo ::set-output name=sample::$(cat sample.json)
-      - name: Run ESLint Reporter Action
+      - name: ESLint Report (from JSON string)
         uses: ./
         with:
           eslint-json: ${{ steps.json.outputs.sample }}
+          title: ESLint Report (from JSON string)
+      - name: ESLint Report (from JSON file)
+        if: always()
+        uses: ./
+        with:
+          eslint-json: ./sample.json
+          title: ESLint Report (from JSON file)

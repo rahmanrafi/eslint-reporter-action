@@ -1,4 +1,5 @@
-import Issue from './Issue.js';
+import Issue from './issue.js';
+import { symbols } from './helpers.js'
 
 export default class File {
     static tableHeadings = [
@@ -13,7 +14,9 @@ export default class File {
         this.path = data.filePath
         this.errorCount = data.errorCount
         this.fatalErrorCount = data.fatalErrorCount
+        this.fixableErrorCount = data.fixableErrorCount
         this.warningCount = data.warningCount
+        this.fixableWarningCount = data.fixableWarningCount
         this.issues = data.messages.map(message => new Issue(message))
         this.pass = this.issues.length == 0
     }
@@ -49,8 +52,15 @@ export default class File {
             let descriptor = this.errorCount == 1 ? 'error' : 'errors'
             let errorsHeading = `${this.errorCount} ${descriptor}`
             // If fatal errors exist, include them with the normal error counts. e.g., 4 errors (1 fatal)
-            if (this.fatalErrorCount) {
-                errorsHeading += ` (${this.fatalErrorCount} fatal)`
+            if (this.fatalErrorCount || this.fixableErrorCount) {
+                let errorsAppendix = []
+                if (this.fatalErrorCount) {
+                    errorsAppendix.push(`${this.fatalErrorCount} fatal`)
+                }
+                if (this.fixableErrorCount) {
+                    errorsAppendix.push(`${this.fixableErrorCount} fixable`)
+                }
+                errorsHeading += ` (${errorsAppendix.join(', ')})`
             }
             issueCountHeadings.push(errorsHeading)
         }
@@ -58,6 +68,7 @@ export default class File {
         if (this.warningCount) {
             let descriptor = this.warningCount == 1 ? 'warning' : 'warnings'
             let warningsHeading = `${this.warningCount} ${descriptor}`
+            warningsHeading += this.fixableWarningCount ? ` (${this.fixableWarningCount} fixable)` : ''
             issueCountHeadings.push(warningsHeading)
         }
 
@@ -70,12 +81,11 @@ export default class File {
      * @returns {Array}
      */
     toRow() {
-        // Parent table headings: | File | Warnings | Errors | Result |
         return [
             this.path, 
             this.warningCount.toString(), 
             this.fatalErrorCount ? `${this.errorCount} (${this.fatalErrorCount})` : this.errorCount.toString(), 
-            this.pass ? ':heavy_check_mark:' : ':x:'
+            this.pass ? symbols.pass : symbols.error
         ]
     }
 }

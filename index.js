@@ -1,5 +1,6 @@
 import * as core from '@actions/core';
-import File from './src/File.js';
+import * as fs from 'fs';
+import File from './src/file.js';
 
 try {
   const summaryTableHeadings = [
@@ -10,11 +11,28 @@ try {
   ]
   const eslintInput = core.getInput('eslint-json')
   const reportTitle = core.getInput('title')
-  const root = JSON.parse(eslintInput)
 
+  let _root = eslintInput
+
+  if (typeof(eslintInput) == 'string') {
+    if (fs.existsSync(eslintInput)) { 
+      core.debug(`Input appears to be a path: ${eslintInput}`)
+      _root = fs.readFileSync(eslintInput)
+    }
+    _root = JSON.parse(_root)
+    core.debug(`Input JSON parsed`)
+  } else { 
+    core.debug(`Input is not a string... treating this raw JSON`)
+    _root = eslintInput
+  }
+  
+  const root = _root
+  if (!root) {
+    core.debug('JSON root is undefined')
+    throw 'Input could not be parsed as valid JSON'
+  }
   // Code below uses the variable name "report" to reduce confusion with the "summary" of the report
   // Note: the GitHub Actions toolkit refers to what the report actually is as a Summary
-  // let report = core.summary
   let summaryTable = [summaryTableHeadings]
   let fileSections = []
   for (const file of root.map(data => new File(data))) {
