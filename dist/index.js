@@ -2906,7 +2906,7 @@ function convertInlineCode(text, forceMultiline = false) {
 
     // This regex will match the Unicode human readable symbols for carriage return ('CR') and/or line feed ('LF') followed by the return symbol (↲)
     // These characters are NOT equivalent to the actual, machine readable Unicode characters (i.e., 'CRLF' != \r\n)
-    const crlfRegex = /([\u240D\u240A]+\u23CE)/gm
+    const crlfRegex = /([\u240D\u240A]?\u23CE)/gm
 
     // Since some ESLint messages can be very long, the containing GitHub table can be rendered wider than the viewport.
     // We can somewhat mitigate this by checking the length of the message and inserting a linebreak before each code block
