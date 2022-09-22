@@ -3,7 +3,7 @@
 This action parses JSON formatted ESLint linting results into a summary for a GitHub Actions workflow step, including a summary table of linting issues, as well as more detailed views for individual files with issues.
 
 ## Inputs
-### `eslint-json` (***required***)
+### `json` (***required***)
 ESLint linting results, formatted using ESLint's [built in `json` formatter](https://eslint.org/docs/latest/user-guide/formatters/#json) (**not** the `json-with-metadata` formatter).
 
 ### `title`
@@ -39,24 +39,21 @@ jobs:
     runs-on: ubuntu-latest
     name: Example ESLint Reporter Usage
     steps:
-      # Example step that outputs ESLint results formatted as JSON
       - name: Get JSON
         id: json
         run: echo ::set-output name=sample::$(cat sample.json)
-      - name: Run ESLint Reporter Action
+      - name: Run ESLint Reporter Action (using JSON string)
         uses: rahmanrafi/eslint-reporter-action@v1
         with:
-          eslint-json: ${{ steps.json.outputs.sample }}
+          json: ${{ steps.json.outputs.sample }}
+          title: ESLint Report
+      - name: Run ESLint Reporter Action (using JSON file)
+        uses: rahmanrafi/eslint-reporter-action@v1
+        with:
+          json: ./sample.json
           title: ESLint Report
 ```
 
 ## Roadmap
 
-Development on this action will likely be very sparse, considering this was developed for use with an internal workflow. Nonetheless, some QoL improvements might be made eventually:
-
-- [ ] Accept paths to `.json` files located on the runner as valid input for `eslint-json` (*in progress*)
-- [ ] Clean up the file names in the report to omit the working directory (*in progress*)
-- [ ] Directly link to relevant files and/or lines from the linting report
-- [ ] Annotate relevant code blocks (although [ataylorme/eslint-annotate-action](https://github.com/marketplace/actions/eslint-annotate-from-report-json) exists)
-
-Alternatively, feel free to fork this action and/or submit a PR with new features or bug fixes!
+Development on this action will likely be very sparse, considering this was developed for internal use at [Qlik](https://github.com/qlik-oss). If you notice a bug, or build on top of this, please feel free to file an issue and/or submit a PR. 

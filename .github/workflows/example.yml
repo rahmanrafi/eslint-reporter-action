@@ -7,17 +7,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Get JSON
-        id: json
-        run: echo ::set-output name=sample::$(cat sample.json)
-      - name: ESLint Report (from JSON string)
-        uses: ./
-        with:
-          eslint-json: ${{ steps.json.outputs.sample }}
-          title: ESLint Report (from JSON string)
-      - name: ESLint Report (from JSON file)
+      - name: ESLint Report
         if: always()
         uses: ./
         with:
-          eslint-json: ./sample.json
-          title: ESLint Report (from JSON file)
+          json: ./sample.json
+          title: ESLint Report

@@ -2823,55 +2823,234 @@ var core = __nccwpck_require__(21);
 var external_fs_ = __nccwpck_require__(147);
 ;// CONCATENATED MODULE: ./src/helpers.js
 const symbols = {
-    'info': ':information_source:', 
+    'info': ':information_source:',
     'pass': ':white_check_mark:',
-    'warn': ':warning:', 
-    'error': ':x:'
+    'warn': ':warning:',
+    'error': ':x:',
+    'file': ':page_facing_up:',
+    'fix': ':bulb:',
+    'noFix': ':grey_question:'
 }
 
-function toCode(text, inline=false) {
-    let codeText = `<code>${text}</code>`
-    return inline ? codeText : wrap(codeText)
+const github = {
+    'server': process.env.GITHUB_SERVER_URL,
+    'repo': process.env.GITHUB_REPOSITORY,
+    'sha': process.env.GITHUB_SHA,
+    'workdir': process.env.GITHUB_WORKSPACE,
+    'blobSubdir': 'blob',
+    'anchorPrefix': 'user-content-'
 }
 
-function toLink(text, uri) {
-    return wrap(`<a href="${uri}>${text}</a>`)
+const tdCenter = { 'align': 'center' }
+
+/**
+ * Return the provided text/raw HTML wrapped within another HTML tag 
+ * 
+ * @param {string} text Text (raw HTML or otherwise) perform the wrap around
+ * @param {string} [tag='p'] Tag to wrap the text in
+ * @param {boolean} [newline=false] Whether this new raw HTML element should terminate with a newline character
+ * @param {Object} [attributes={}] HTML attributes to add to the new element
+ * 
+ * @returns {string} Wrapped raw HTML element
+ */
+function wrap(text, tag = 'p', newline = false, attributes = {}) {
+    const eol = newline ? '\n' : ''
+    const attrsArray = []
+    for (const [attr, val] of Object.entries(attributes)) {
+        attrsArray.push(`${attr}="${val}"`)
+    }
+    const attrs = ` ${attrsArray.join(' ')}`
+    return `<${tag}${attrs}>${text}</${tag}>${eol}`
 }
 
-function convertInlineCode(text) {
-    return text.replace(/`(.+?)`/mg, toCode('$1', true))
+/**
+ * Return an HTML link, either inline or wrapped by a parent element
+ * 
+ * @param {string} text Text used for for the link
+ * @param {string} url Full URL that this link points to (i.e., value of href)
+ * @param {boolean} [inline=false] Whether this code block should be wrapped in a parent element
+ * 
+ * @returns {string} Link (<a> tag) raw HTML
+ */
+function toLink(text, url, inline = false) {
+    const link = wrap(text, 'a', undefined, { 'href': url })
+    return inline ? link : wrap(link)
 }
 
-function wrap(text) {
-    return`<p>${text}</p>`
+/**
+ * Return an HTML formatted code block, either inline or wrapped by a parent element.
+ * 
+ * @param {string} text Plaintext to extract a code block from
+ * @param {boolean} [inline=false] Whether this code block should be wrapped in a parent element
+ * @param {string} [wrapTag='p'] If not inline, the tag for the parent element used to wrap this code block
+ * @param {Object} [attrs={}] If not inline, additional HTML attributes to add to the parent element
+ * 
+ * @returns {string} Code block raw HTML
+ */
+function toCode(text, inline = false, wrapTag = 'p', attrs = {}) {
+    const codeTag = wrap(text, 'code')
+    return inline ? codeTag : wrap(codeTag, wrapTag, false, attrs)
 }
+
+/**
+ * Return a string with contained code blocks wrapped in HTML code tags (inline or multiline)
+ * 
+ * @param {string} text Source text containing code blocks to wrap
+ * @param {boolean} [forceMultiline=false] Force the code block being generated to be a multiline
+ * @returns {string} Text with contained code blocks wrapped in HTML code tags
+ */
+function convertInlineCode(text, forceMultiline = false) {
+    // This regex will at most consume 1 pair of backticks (`), stopping when EOL (with '.' matching newlines) or a specified boundary character is found.
+    // This preserves any nested backticks, and prevents incorrect parsing of closing backticks as an opening backtick.
+    const codeTextRegex = /`(.+?)`(?=$|\s|[\]\)\}\>\.])/gms
+
+    // This regex will match the Unicode human readable symbols for carriage return ('CR') and/or line feed ('LF') followed by the return symbol (↲)
+    // These characters are NOT equivalent to the actual, machine readable Unicode characters (i.e., 'CRLF' != \r\n)
+    const crlfRegex = /([\u240D\u240A]+\u23CE)/gm
+
+    // Since some ESLint messages can be very long, the containing GitHub table can be rendered wider than the viewport.
+    // We can somewhat mitigate this by checking the length of the message and inserting a linebreak before each code block
+    let br = ''
+    let inline = true
+    let wrapTag = undefined
+    let attrs = undefined
+    // let [br, inline, wrapTag, attrs] = ['', true, undefined, undefined]
+    if (forceMultiline || text.length >= 100) {
+        // While we're breaking up the message, we can make the separated code blocks into multiline ones with syntax highlighting,
+        // and in those, insert a newline character after any carriage return and/or line feed *symbol* for visual clarity in the code block.
+        text = text.replace(crlfRegex, `$1\n`)
+        br = '<br>'
+        inline = false
+        wrapTag = 'pre'
+        attrs = { 'lang': 'javascript' }
+    }
+
+    return text.replace(codeTextRegex, toCode(`${br}$1`, inline, wrapTag, attrs))
+}
+
+/**
+ * Return a recursively generated an HTML unordered list from an n-dimensional array, nesting as required
+ * 
+ * @param {string|string[]|undefined} obj Array of strings to create a <ul> element for, or a string to create a <li> item for
+ * 
+ * @returns {string|undefined} Unordered list element raw HTML
+ */
+function toNestedUl(obj) {
+    if (Array.isArray(obj)) {
+        let contents = ''
+        obj.forEach((el) => {
+            const childValue = toNestedUl(el)
+            // Only add the child if its not undefined (since some generated subarrays might be empty, but still get iterated over)
+            if (childValue) {
+                contents += childValue
+            }
+        })
+        return wrap(contents, 'ul', true)
+    } else if (obj) {
+        return wrap(obj.toString(), 'li', true)
+    } else {
+        return
+    }
+
+}
+
+/**
+ * Return a custom formatted HTML table. This function is derived from the original Summary.toTable() method from @actions/core
+ * 
+ * @param {Object[]} rows Array of table row contents
+ * @param {string} [tableId=''] Optional id attribute to attach to the table element
+ * 
+ * @returns {string} Table element raw HTML
+ */
+function toCustomTable(rows, tableId = '') {
+    const tableBody = rows.map(row => {
+        const cells = row.map(cell => {
+            // Handle the scenario where the "cell" is actually an array of the cell contents and HTML attributes
+            if (Array.isArray(cell) || typeof (cell) === 'string') {
+                let cellAttrs = undefined
+                if (Array.isArray(cell)) {
+                    cellAttrs = cell[1]
+                    cell = cell[0]
+                }
+                return wrap(cell, 'td', undefined, cellAttrs)
+            }
+            const { header, data } = cell
+            return wrap(data, header ? 'th' : 'td')
+        }).join('')
+        return wrap(cells, 'tr')
+    }).join('')
+
+    const attributes = tableId ? { 'id': tableId } : {}
+    return wrap(tableBody, 'table', true, attributes)
+}
+
+/**
+ * Return a collapsible HTML element containing some arbitrary raw HTML element
+ * 
+ * @param {string} el Raw HTML element to render into a collapsible item
+ * @returns {string} Collapsible element raw HTML
+ */
+function toCollapsible(el) {
+    return wrap(el, 'summary')
+}
+
+/**
+ * Pluralize a word depending on an associated count
+ * 
+ * @param {number} value Count to determine pluralization
+ * @param {string} noun String to pluralize
+ * 
+ * @returns {string} Pluralized word
+ */
+function pluarlize(value, noun) {
+    return value == 1 ? noun : `${noun}s`
+}
+
 ;// CONCATENATED MODULE: ./src/issue.js
 
 
 class Issue {
-    constructor(data) {
-        // Escape any pipe characters "|" that might exist in string 
-        // data to prevent conflicts with GitHub Markdown's table syntax
+    /**
+     * Create a generic ESLint issue within a file
+     * 
+     * @param {File} parentFile File instance this issue is associated with
+     * @param {Object} data Object containing data about this issue
+     * 
+     * @returns {Issue} An new Issue instance
+     */
+    constructor(parentFile, data) {
+        this.parentFile = parentFile
+        // Escape any pipe characters "|" that might exist in string data to prevent conflicts with GitHub Markdown's table rendering
         this.ruleId = data.ruleId.replace(/\|/g, '\|')
         this.message = data.message.replace(/\|/g, '\|')
         this.messageType = data.messageId.replace(/\|/g, '\|')
-        this.severity = data.severity > 0 ? (data.severity > 1 ? `${symbols.error} Error` : `${symbols.warn} Warn`) : `${symbols.info} Info`
+        this.fixable = data.fix
+        this.severity = data.severity > 0 ? (data.severity > 1 ? `${wrap(symbols.error, 'i')} Error` : `${wrap(symbols.warn, 'i')} Warn`) : `${wrap(symbols.info, 'i')} Info`
         this.lnRange = [data.line, data.endLine]
         this.colRange = [data.column, data.endColumn]
     }
 
     /** 
-     * Return an array containing info about this Issue for use within a table.
-     * @returns {Array}
+     * Return an array formatted table row containing info about this Issue
+     * 
+     * @returns {string[]} Array formatted table row
      */
     toRow() {
-        return [
-            this.severity.toString(),
-            this.lnRange[0] == this.lnRange[1] ? this.lnRange[0].toString() : this.lnRange.join(':'),
-            this.colRange[0].toString(), 
-            `${convertInlineCode(this.message)}`, 
-            `${convertInlineCode(`\`${this.messageType}\` \(\`${this.ruleId}\`\)`)}`
-        ]
+        // Prepare a link to the relevant line or range of lines corresponding to this Issue
+        const lnText = this.lnRange[0] == this.lnRange[1] ? `${this.lnRange[0]}` : this.lnRange.join(':')
+        const lnAnchor = `#L${this.lnRange[0]}-L${this.lnRange[1]}`
+        const lnLink = toLink(lnText, `${this.parentFile.url}${lnAnchor}`, true)
+
+        // Format additional information about this Issue
+        const severityCell = [this.severity, tdCenter]
+        const fixableCell = [this.fixable ? symbols.fix : symbols.noFix, tdCenter]
+        const colText = this.colRange[0].toString()
+        const ruleInfo = `${this.messageType} (${this.ruleId})`
+
+        // ESLint messages can contain one or more block of inline code (usally enclosed by backticks "`"). 
+        // These blocks may be nested (e.g., a code block containing a template literal), so we need parse them appropriately.
+        const eslintMessage = convertInlineCode(this.message, true)
+        return [severityCell, lnLink, colText, eslintMessage, fixableCell, ruleInfo]
     }
 }
 ;// CONCATENATED MODULE: ./src/file.js
@@ -2884,53 +3063,95 @@ class File {
         { data: 'Line', header: true },
         { data: 'Column', header: true },
         { data: 'Message', header: true },
+        { data: 'Fixable', header: true },
         { data: 'Issue Type (Rule ID)', header: true }
     ]
 
+    /**
+     * Create a generic file described by ESLint results
+     * 
+     * @param {Object} data Object containing data about this file
+     * 
+     * @returns {File} A new File instance
+     */
     constructor(data) {
-        this.path = data.filePath
+        this.path = data.filePath.replace(github.workdir, '').replace(/^([/\\]+)/, '').replace(/(\\)/, '/')
         this.errorCount = data.errorCount
         this.fatalErrorCount = data.fatalErrorCount
         this.fixableErrorCount = data.fixableErrorCount
         this.warningCount = data.warningCount
         this.fixableWarningCount = data.fixableWarningCount
-        this.issues = data.messages.map(message => new Issue(message))
+        this.issues = data.messages.map(message => new Issue(this, message))
         this.pass = this.issues.length == 0
+        this.url = `${github.server}/${github.repo}/${github.blobSubdir}/${github.sha}/${this.path}`
     }
 
     /**
-     * Return an array containing a heading and table array for this File and associated ESLint issues.
-     * @returns {Array}
+     * Update an object containing summary data for an ESLint run
+     * 
+     * @param {Object} data Summary data to update
+     * 
+     * @returns {Object} Updated summary data object
+     */
+    updateSummaryData(data) {
+        data.files++
+        data.passFiles += this.pass ? 1 : 0
+        if (this.warningCount) {
+            data.warningFiles++
+            data.warningTotal += this.warningCount
+            data.warningFixable += this.fixableWarningCount
+        }
+        if (this.errorCount) {
+            data.errorFiles++
+            data.errorTotal += this.errorCount
+            data.errorFixable += this.fixableErrorCount
+        }
+        if (this.fatalErrorCount) {
+            data.fatalErrorFiles++
+            data.fatalErrorTotal += this.fatalErrorCount
+        }
+        return data
+    }
+
+    /**
+     * Return an array containing a raw HTML heading and table for this File
+     *
+     * @returns {string[]} Heading and table raw HTML elements
      */
     toSection() {
-        return [this.toHeading(), this.toTable()]
+        const heading = wrap(wrap(this.toHeading(), 'h3'), 'summary')
+        return wrap(`${heading}${this.toTable()}`, 'details', true)
     }
 
     /** 
-     * Return an array containing all ESLint issues found within this File.
-     * @returns {Array}
+     * Return an HTML table containing information about ESLint issues found within this File
+     * 
+     * @returns {string} Raw HTML table containing information about issues found within this File
      */
     toTable() {
-        let tableArray = this.pass ? [] : [File.tableHeadings]
+        const tableArray = this.pass ? [] : [File.tableHeadings]
         for (const issue of this.issues) {
             tableArray.push(issue.toRow())
         }
-        return tableArray
+        return toCustomTable(tableArray, this.path.toLowerCase())
     }
 
     /**
-     * Return a formatted string for this File for use as a section header.
-     * @returns {String}
+     * Return an HTML heading about this File for use within a section in a report
+     * 
+     * @returns {string} Raw HTML heading
      */
     toHeading() {
-        let heading = `${this.path}: `
-        let issueCountHeadings = []
+        // The start of the heading (i.e., the filename), should link directly to the blob view for it at the associated commit
+        const heading = `${toLink(this.path, this.url, true)}: `
+        const issueCountHeadings = []
+
+        // Append details about warning and/or error counts to this heading
         if (this.errorCount) {
-            let descriptor = this.errorCount == 1 ? 'error' : 'errors'
-            let errorsHeading = `${this.errorCount} ${descriptor}`
-            // If fatal errors exist, include them with the normal error counts. e.g., 4 errors (1 fatal)
+            let errorsHeading = `${this.errorCount} ${pluarlize(this.errorCount, 'error')}`
+            // Include fatal error counts with the normal error counts (e.g., 4 errors (1 fatal))
             if (this.fatalErrorCount || this.fixableErrorCount) {
-                let errorsAppendix = []
+                const errorsAppendix = []
                 if (this.fatalErrorCount) {
                     errorsAppendix.push(`${this.fatalErrorCount} fatal`)
                 }
@@ -2941,32 +3162,35 @@ class File {
             }
             issueCountHeadings.push(errorsHeading)
         }
-
         if (this.warningCount) {
-            let descriptor = this.warningCount == 1 ? 'warning' : 'warnings'
-            let warningsHeading = `${this.warningCount} ${descriptor}`
+            let warningsHeading = `${this.warningCount} ${pluarlize(this.warningCount, 'warning')}`
             warningsHeading += this.fixableWarningCount ? ` (${this.fixableWarningCount} fixable)` : ''
             issueCountHeadings.push(warningsHeading)
         }
 
-        heading += issueCountHeadings.join(', ')
-        return heading
+        return `${heading}${issueCountHeadings.join(', ')}`
     }
 
     /**
-     * Return an array containing info about this File for use within a table.
-     * @returns {Array}
+     * Return an array formatted table row summarizing ESLint results for this File
+     * 
+     * @returns {string[]} Array formatted table row
      */
     toRow() {
+        // If the file contains issues, there will be a corresponding table and section for it within the report.
+        // For these files, we can link from the summary table to the relevant section using anchor ('#') tags.
+        // NOTE: GitHub's markup processing appears to convert id values to lowercase and prefixes them with "user-content-".
+        const filepathCell = this.pass ? this.path : toLink(this.path, `#${github.anchorPrefix}${this.path.toLowerCase()}`, true)
         return [
-            this.path, 
-            this.warningCount.toString(), 
-            this.fatalErrorCount ? `${this.errorCount} (${this.fatalErrorCount})` : this.errorCount.toString(), 
+            filepathCell,
+            this.warningCount.toString(),
+            this.fatalErrorCount ? `${this.errorCount} (${this.fatalErrorCount})` : this.errorCount.toString(),
             this.pass ? symbols.pass : symbols.error
         ]
     }
 }
-;// CONCATENATED MODULE: ./index.js
+;// CONCATENATED MODULE: ./src/index.js
+
 
 
 
@@ -2978,51 +3202,117 @@ try {
     { data: 'Errors', header: true },
     { data: 'Result', header: true }
   ]
-  const eslintInput = core.getInput('eslint-json')
+  const eslintInput = core.getInput('json')
   const reportTitle = core.getInput('title')
+  const root = parseResults(eslintInput)
 
-  let _root = eslintInput
+  const problemFiles = []
+  const summaryTable = [summaryTableHeadings]
+  let summaryData = {
+    'files': 0,
+    'passFiles': 0,
+    'warningTotal': 0,
+    'warningFiles': 0,
+    'warningFixable': 0,
+    'errorTotal': 0,
+    'errorFiles': 0,
+    'errorFixable': 0,
+    'fatalErrorTotal': 0,
+    'fatalErrorFiles': 0
+  }
 
-  if (typeof(eslintInput) == 'string') {
-    if (external_fs_.existsSync(eslintInput)) { 
-      core.debug(`Input appears to be a path: ${eslintInput}`)
-      _root = external_fs_.readFileSync(eslintInput)
-    }
-    _root = JSON.parse(_root)
-    core.debug(`Input JSON parsed`)
-  } else { 
-    core.debug(`Input is not a string... treating this raw JSON`)
-    _root = eslintInput
-  }
-  
-  const root = _root
-  if (!root) {
-    core.debug('JSON root is undefined')
-    throw 'Input could not be parsed as valid JSON'
-  }
-  // Code below uses the variable name "report" to reduce confusion with the "summary" of the report
-  // Note: the GitHub Actions toolkit refers to what the report actually is as a Summary
-  let summaryTable = [summaryTableHeadings]
-  let fileSections = []
   for (const file of root.map(data => new File(data))) {
     summaryTable.push(file.toRow())
+    summaryData = file.updateSummaryData(summaryData)
     if (!file.pass) {
-      fileSections.push(file.toSection())
+      problemFiles.push(file)
     }
   }
-
-  [[reportTitle, summaryTable], ...fileSections].forEach((section, index) => {
-    let [heading, table] = section
-    // Set the heading level to 3 (`###`) for every heading other than the report title
-    core.summary.addHeading(heading, index > 0 ? 3 : 2)
-    core.summary.addTable(table)
-  })
+  genSummary(reportTitle, summaryData, summaryTable, problemFiles)
 
   core.setOutput('report', core.summary.stringify())
   core.summary.write()
 
 } catch (error) {
+  console.error(error.name)
+  console.error(error.stack)
   core.setFailed(error.message);
+}
+
+/**
+ * Generate a GitHub Actions summary object
+ * 
+ * @param {string} title Title to use for the GitHub Actions summary
+ * @param {Object} summaryData Object containing ESLint result summary data
+ * @param {Array[]} summaryTable 2-dimensional array containing tabular data
+ * @param {File[]} files Array of File instances to process
+ */
+function genSummary(title, summaryData, summaryTable, files) {
+  const fixCommand = toCode('--fix', true)
+  core.summary.addHeading(title, 2)
+  core.summary.addHeading('Summary', 3)
+
+  // Create sublist(s) for warnings and/or errors that may have been found. 
+  // If their respective counts are 0, the corresponding sublist won't be added.
+  let warningSubList = null
+  if (summaryData.warningTotal) {
+    warningSubList = [
+      `${summaryData.warningFiles} individual ${pluarlize(summaryData.warningFiles, 'file')} contained warnings`,
+      `${summaryData.warningFixable} ${pluarlize(summaryData.warningFixable, 'warning')} can be fixed using ${fixCommand}`
+    ]
+  }
+
+  let errorSubList = null
+  let fatalErrorSubList = !summaryData.fatalErrorTotal ? null : [`${summaryData.fatalErrorFiles} individual ${pluarlize(summaryData.fatalErrorFiles, 'file')} contained fatal errors`]
+  if (summaryData.errorTotal) {
+    errorSubList = [
+      `${summaryData.errorFiles} individual ${pluarlize(summaryData.errorFiles, 'file')} contained errors`,
+      `${summaryData.errorFixable} ${pluarlize(summaryData.errorFixable, 'error')} can be fixed using ${fixCommand}`,
+      `${summaryData.fatalErrorTotal} total fatal ${pluarlize(summaryData.fatalErrorTotal, 'fatal error')}`, fatalErrorSubList
+    ]
+  }
+
+  const summaryList = [
+    `${symbols.file} ${summaryData.files} ${pluarlize(summaryData.files, 'file')} linted`,
+    `${symbols.pass} ${summaryData.passFiles} ${pluarlize(summaryData.passFiles, 'file')} had no issues`,
+    `${symbols.warn} ${summaryData.warningTotal} total ${pluarlize(summaryData.warningTotal, 'warning')}`, warningSubList,
+    `${symbols.error} ${summaryData.errorTotal} total ${pluarlize(summaryData.errorTotal, 'error')}`, errorSubList
+  ]
+  core.summary.addRaw(toNestedUl(summaryList))
+  core.summary.addTable(summaryTable)
+
+  files.forEach((file) => {
+    core.summary.addRaw(file.toSection())
+  })
+}
+
+/**
+ * Return parsed JSON ESLint linting results 
+ * 
+ * @param {any} input Potential ESLint result JSON (stringified or otherwise)
+ * 
+ * @returns {Object} Object of ESLint linting results
+ */
+function parseResults(input) {
+  let root
+  if (typeof (input) == 'string') {
+    if (external_fs_.existsSync(input)) {
+      core.debug(`Input appears to be a path: ${input}`)
+      root = external_fs_.readFileSync(input)
+    }
+    root = JSON.parse(root)
+    core.debug(`Input JSON parsed`)
+  } else {
+    core.debug(`Input is not a string... treating this raw JSON`)
+    root = input
+  }
+
+  if (!root) {
+    core.debug('ESLint results JSON could not be read')
+    throw 'Input could not be parsed as valid JSON'
+  }
+
+  return root
 }
 })();
 

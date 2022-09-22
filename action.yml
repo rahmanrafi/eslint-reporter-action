@@ -5,7 +5,7 @@ branding:
   icon: 'file-text'
   color: 'green'
 inputs:
-  eslint-json:
+  json:
     description: 'ESLint results JSON'
     required: true
   title:
