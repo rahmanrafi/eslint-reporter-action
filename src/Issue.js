@@ -1,4 +1,4 @@
-import { symbols, tdCenter, toLink, convertInlineCode, wrap } from './helpers.js'
+import { symbols, tdCenter, toLink, convertInlineCode, wrap, fixHover, noFixHover } from './helpers.js'
 
 export default class Issue {
     /**
@@ -34,7 +34,8 @@ export default class Issue {
 
         // Format additional information about this Issue
         const severityCell = [this.severity, tdCenter]
-        const fixableCell = [this.fixable ? symbols.fix : symbols.noFix, tdCenter]
+        let fixableCellAttrs = this.fixable ? { ...fixHover, ...tdCenter } : { ...noFixHover, ...tdCenter }
+        const fixableCell = this.fixable ? [symbols.fix, fixableCellAttrs] : [symbols.noFix, fixableCellAttrs]
         const colText = this.colRange[0].toString()
         const ruleInfo = `${this.messageType} (${this.ruleId})`
 

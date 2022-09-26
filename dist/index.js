@@ -2842,6 +2842,8 @@ const github = {
 }
 
 const tdCenter = { 'align': 'center' }
+const fixHover = { 'title': 'ESLint reported this issue as fixable' }
+const noFixHover = { 'title': 'ESLint did not report this issue as fixable' }
 
 /**
  * Return the provided text/raw HTML wrapped within another HTML tag 
@@ -3043,7 +3045,8 @@ class Issue {
 
         // Format additional information about this Issue
         const severityCell = [this.severity, tdCenter]
-        const fixableCell = [this.fixable ? symbols.fix : symbols.noFix, tdCenter]
+        let fixableCellAttrs = this.fixable ? { ...fixHover, ...tdCenter } : { ...noFixHover, ...tdCenter }
+        const fixableCell = this.fixable ? [symbols.fix, fixableCellAttrs] : [symbols.noFix, fixableCellAttrs]
         const colText = this.colRange[0].toString()
         const ruleInfo = `${this.messageType} (${this.ruleId})`
 
@@ -3268,7 +3271,7 @@ function genSummary(title, summaryData, summaryTable, files) {
     errorSubList = [
       `${summaryData.errorFiles} individual ${pluarlize(summaryData.errorFiles, 'file')} contained errors`,
       `${summaryData.errorFixable} ${pluarlize(summaryData.errorFixable, 'error')} can be fixed using ${fixCommand}`,
-      `${summaryData.fatalErrorTotal} total fatal ${pluarlize(summaryData.fatalErrorTotal, 'fatal error')}`, fatalErrorSubList
+      `${summaryData.fatalErrorTotal} total ${pluarlize(summaryData.fatalErrorTotal, 'fatal error')}`, fatalErrorSubList
     ]
   }
 

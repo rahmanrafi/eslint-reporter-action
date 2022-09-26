@@ -76,7 +76,7 @@ function genSummary(title, summaryData, summaryTable, files) {
     errorSubList = [
       `${summaryData.errorFiles} individual ${pluarlize(summaryData.errorFiles, 'file')} contained errors`,
       `${summaryData.errorFixable} ${pluarlize(summaryData.errorFixable, 'error')} can be fixed using ${fixCommand}`,
-      `${summaryData.fatalErrorTotal} total fatal ${pluarlize(summaryData.fatalErrorTotal, 'fatal error')}`, fatalErrorSubList
+      `${summaryData.fatalErrorTotal} total ${pluarlize(summaryData.fatalErrorTotal, 'fatal error')}`, fatalErrorSubList
     ]
   }
 

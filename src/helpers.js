@@ -18,6 +18,8 @@ export const github = {
 }
 
 export const tdCenter = { 'align': 'center' }
+export const fixHover = { 'title': 'ESLint reported this issue as fixable' }
+export const noFixHover = { 'title': 'ESLint did not report this issue as fixable' }
 
 /**
  * Return the provided text/raw HTML wrapped within another HTML tag 
