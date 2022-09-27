@@ -3045,8 +3045,7 @@ class Issue {
 
         // Format additional information about this Issue
         const severityCell = [this.severity, tdCenter]
-        let fixableCellAttrs = this.fixable ? { ...fixHover, ...tdCenter } : { ...noFixHover, ...tdCenter }
-        const fixableCell = this.fixable ? [symbols.fix, fixableCellAttrs] : [symbols.noFix, fixableCellAttrs]
+        const fixableCell = this.fixable ? [symbols.fix, { ...fixHover, ...tdCenter }] : [symbols.noFix, { ...noFixHover, ...tdCenter }]
         const colText = this.colRange[0].toString()
         const ruleInfo = `${this.messageType} (${this.ruleId})`
 
